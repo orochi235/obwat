@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { ptP710btMedia, PT_P710BT_DPI, PT_P710BT_PRINTHEAD_DOTS } from './profiles'
+import { ptP710btMedia, ptP710btProfile, PT_P710BT_DPI, PT_P710BT_PRINTHEAD_DOTS } from './profiles'
+
+describe('ptP710btProfile', () => {
+  it('bundles model, media geometry, and a driver factory — no transport', () => {
+    const profile = ptP710btProfile(12)
+    expect(profile.model).toBe('Brother PT-P710BT')
+    expect(profile.media.printableDots).toBe(70)
+    expect(typeof profile.makeDriver().encode).toBe('function')
+    expect('makeTransport' in profile).toBe(false)
+  })
+})
 
 describe('ptP710btMedia', () => {
   it('12mm tape uses the documented print area (70 dots)', () => {

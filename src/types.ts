@@ -57,5 +57,4 @@ export interface DeviceProfile {
   model: string
   media: MediaSpec
   makeDriver(): Driver
-  makeTransport(): Transport
 }

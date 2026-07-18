@@ -1,4 +1,4 @@
-import type { DeviceProfile, MediaSpec, Transport } from './types'
+import type { DeviceProfile, MediaSpec } from './types'
 import { createBrotherRasterDriver } from './brotherDriver'
 
 export const PT_P710BT_DPI = 180
@@ -26,12 +26,11 @@ export function ptP710btMedia(tapeWidthMm: number): MediaSpec {
   return { dpi: PT_P710BT_DPI, printheadDots: PT_P710BT_PRINTHEAD_DOTS, printableDots, tapeWidthMm }
 }
 
-/** A PT-P710BT profile bound to an already-constructed transport (USB, serial, …). */
-export function ptP710btProfile(transport: Transport, tapeWidthMm: number): DeviceProfile {
+/** PT-P710BT profile: geometry + driver. Transport construction lives in the facade/caller. */
+export function ptP710btProfile(tapeWidthMm: number): DeviceProfile {
   return {
     model: 'Brother PT-P710BT',
     media: ptP710btMedia(tapeWidthMm),
     makeDriver: () => createBrotherRasterDriver(),
-    makeTransport: () => transport,
   }
 }
