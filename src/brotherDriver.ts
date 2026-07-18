@@ -66,7 +66,7 @@ export function createBrotherRasterDriver(): Driver {
       const hasError = raw.length >= 10 && (raw[8] !== 0 || raw[9] !== 0)
       // Full Brother status is 32 bytes; fewer means a timeout/disconnect truncated it.
       const incomplete = raw.length < 32
-      const mediaWidthMm = incomplete ? null : raw[10]
+      const mediaWidthMm = incomplete ? null : (raw[10] ?? null)
       return { raw, hasError, incomplete, mediaWidthMm }
     },
   }

@@ -1,9 +1,11 @@
 import type { RgbaImage, MediaSpec, Raster1bpp } from './types'
 
 function isBlack(data: Uint8ClampedArray, i: number): boolean {
-  const a = data[i + 3]
+  // ?? 0 fallbacks satisfy noUncheckedIndexedAccess; callers always pass
+  // in-bounds pixel offsets.
+  const a = data[i + 3] ?? 0
   if (a <= 127) return false
-  const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+  const lum = 0.299 * (data[i] ?? 0) + 0.587 * (data[i + 1] ?? 0) + 0.114 * (data[i + 2] ?? 0)
   return lum < 128
 }
 
@@ -30,7 +32,8 @@ export function rgbaToRaster(image: RgbaImage, media: MediaSpec): Raster1bpp {
       const i = (y * image.width + x) * 4
       if (isBlack(image.data, i)) {
         const dot = offset + y
-        row[dot >> 3] |= 1 << (7 - (dot & 7))
+        const byte = dot >> 3
+        row[byte] = (row[byte] ?? 0) | (1 << (7 - (dot & 7)))
       }
     }
     rows.push(row)

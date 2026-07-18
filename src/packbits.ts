@@ -13,7 +13,7 @@ export function packbits(input: Uint8Array): Uint8Array {
     while (i + run < n && input[i + run] === input[i] && run < 128) run++
 
     if (run >= 2) {
-      out.push(257 - run, input[i])
+      out.push(257 - run, input[i] ?? 0)
       i += run
     } else {
       // gather a literal run until the next >=2 repeat (or cap at 128)
@@ -27,7 +27,7 @@ export function packbits(input: Uint8Array): Uint8Array {
         i++
       }
       out.push(lit - 1)
-      for (let k = 0; k < lit; k++) out.push(input[start + k])
+      for (let k = 0; k < lit; k++) out.push(input[start + k] ?? 0)
     }
   }
   return Uint8Array.from(out)
