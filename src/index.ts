@@ -9,3 +9,11 @@ export { ptP710btProfile, ptP710btMedia } from './profiles'
 export { printRaster } from './printJob'
 export { startUsbKeepalive } from './keepalive'
 export type { UsbKeepalive } from './keepalive'
+export { createBrotherPrinter, NoGrantedDeviceError, USB_VENDOR_BROTHER } from './printer'
+export type {
+  BrotherPrinter,
+  BrotherPrinterOptions,
+  UsbLike,
+  SerialLike,
+  UsbDeviceWithVendor,
+} from './printer'
