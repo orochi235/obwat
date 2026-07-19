@@ -73,7 +73,19 @@ Observed status reply with 12 mm laminated TZe tape loaded:
  │  │  └─ 'B' series marker
  │  └─ status size (0x20 = 32 bytes)
  └─ print-head mark 0x80
+row 2:                  └─ tape color 0x01 (white), text color 0x08 (black) — bytes 24–25
 ```
+
+The cassette self-describes via sensor notches on its underside; the printer
+reports what it detects in the status reply. Fields obwat decodes
+(`parseStatus` → `PrinterStatus`): media width (byte 10), media type (byte 11:
+laminated / non-laminated / heat-shrink 2:1 / 3:1 / none / incompatible), tape
+background color (byte 24) and text/ink color (byte 25), per the code tables in
+the *PT-E550W/P750W/P710BT Raster Command Reference* §4 tables (4), (8), (9).
+Media length (byte 17) is always 0 for TZe (continuous tape), so obwat skips
+it. The reply also carries printer-side state (error bits at 8–9, status type
+at 18, phase at 19–21) — `hasError` summarizes 8–9; the rest stays raw in
+`PrinterStatus.raw`.
 
 ## Power behavior (important)
 

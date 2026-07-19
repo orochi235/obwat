@@ -94,4 +94,68 @@ describe('BrotherRasterDriver', () => {
     raw[10] = 12
     expect(createBrotherRasterDriver().parseStatus(raw).mediaWidthMm).toBeNull()
   })
+
+  // Captured from a real PT-P710BT with 12 mm white/black laminated TZe loaded
+  // (docs/hardware/pt-p710bt.md).
+  const capturedReply = Uint8Array.from([
+    0x80, 0x20, 0x42, 0x30, 0x76, 0x30, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x01, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  ])
+
+  it('parseStatus decodes cassette metadata from a real captured reply', () => {
+    const status = createBrotherRasterDriver().parseStatus(capturedReply)
+    expect(status.mediaWidthMm).toBe(12)
+    expect(status.mediaType).toBe('laminated')
+    expect(status.tapeColor).toBe('white')
+    expect(status.textColor).toBe('black')
+  })
+
+  it('parseStatus decodes heat-shrink media types', () => {
+    const raw = new Uint8Array(32)
+    raw[11] = 0x11
+    expect(createBrotherRasterDriver().parseStatus(raw).mediaType).toBe('heat-shrink-2-1')
+    raw[11] = 0x17
+    expect(createBrotherRasterDriver().parseStatus(raw).mediaType).toBe('heat-shrink-3-1')
+  })
+
+  it('parseStatus decodes no-media and incompatible cassette states', () => {
+    const raw = new Uint8Array(32)
+    expect(createBrotherRasterDriver().parseStatus(raw).mediaType).toBe('no-media')
+    raw[11] = 0xff
+    raw[24] = 0xff
+    raw[25] = 0xff
+    const status = createBrotherRasterDriver().parseStatus(raw)
+    expect(status.mediaType).toBe('incompatible')
+    expect(status.tapeColor).toBe('incompatible')
+    expect(status.textColor).toBe('incompatible')
+  })
+
+  it('parseStatus decodes special tape colors', () => {
+    const raw = new Uint8Array(32)
+    raw[24] = 0x23 // Satin Gold
+    raw[25] = 0x0a // Gold text
+    const status = createBrotherRasterDriver().parseStatus(raw)
+    expect(status.tapeColor).toBe('satin-gold')
+    expect(status.textColor).toBe('gold')
+  })
+
+  it('parseStatus maps unrecognized cassette codes to unknown', () => {
+    const raw = new Uint8Array(32)
+    raw[11] = 0x42
+    raw[24] = 0x42
+    raw[25] = 0x42
+    const status = createBrotherRasterDriver().parseStatus(raw)
+    expect(status.mediaType).toBe('unknown')
+    expect(status.tapeColor).toBe('unknown')
+    expect(status.textColor).toBe('unknown')
+  })
+
+  it('parseStatus reports null cassette metadata for an incomplete reply', () => {
+    const raw = new Uint8Array(16)
+    raw[11] = 0x01
+    const status = createBrotherRasterDriver().parseStatus(raw)
+    expect(status.mediaType).toBeNull()
+    expect(status.tapeColor).toBeNull()
+    expect(status.textColor).toBeNull()
+  })
 })

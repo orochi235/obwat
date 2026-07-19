@@ -26,7 +26,69 @@ export interface JobOptions {
   marginDots: number
 }
 
-/** Parsed printer status reply. */
+/** Cassette media type (status byte 11). */
+export type MediaType =
+  | 'no-media'
+  | 'laminated'
+  | 'non-laminated'
+  | 'heat-shrink-2-1'
+  | 'heat-shrink-3-1'
+  | 'incompatible'
+  | 'unknown'
+
+/** Cassette tape (background) color (status byte 24). */
+export type TapeColor =
+  | 'white'
+  | 'other'
+  | 'clear'
+  | 'red'
+  | 'blue'
+  | 'yellow'
+  | 'green'
+  | 'black'
+  | 'clear-white-text'
+  | 'matte-white'
+  | 'matte-clear'
+  | 'matte-silver'
+  | 'satin-gold'
+  | 'satin-silver'
+  | 'blue-d'
+  | 'red-d'
+  | 'fluorescent-orange'
+  | 'fluorescent-yellow'
+  | 'berry-pink-s'
+  | 'light-gray-s'
+  | 'lime-green-s'
+  | 'yellow-f'
+  | 'pink-f'
+  | 'blue-f'
+  | 'white-heat-shrink'
+  | 'white-flex-id'
+  | 'yellow-flex-id'
+  | 'cleaning'
+  | 'stencil'
+  | 'incompatible'
+  | 'unknown'
+
+/** Cassette text (foreground/ink) color (status byte 25). */
+export type TextColor =
+  | 'white'
+  | 'other'
+  | 'red'
+  | 'blue'
+  | 'black'
+  | 'gold'
+  | 'blue-f'
+  | 'cleaning'
+  | 'stencil'
+  | 'incompatible'
+  | 'unknown'
+
+/**
+ * Parsed printer status reply. Cassette fields are null when the reply is
+ * incomplete, 'unknown' when the byte carries a code the spec doesn't list
+ * (the raw bytes are always available in `raw`).
+ */
 export interface PrinterStatus {
   raw: Uint8Array
   hasError: boolean
@@ -34,6 +96,12 @@ export interface PrinterStatus {
   incomplete: boolean
   /** Loaded tape width in mm (byte 10), or null when the reply is incomplete. */
   mediaWidthMm: number | null
+  /** Cassette media type (byte 11). */
+  mediaType: MediaType | null
+  /** Tape background color (byte 24). */
+  tapeColor: TapeColor | null
+  /** Text/ink color (byte 25). */
+  textColor: TextColor | null
 }
 
 export interface Driver {

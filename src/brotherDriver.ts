@@ -1,5 +1,61 @@
-import type { Driver, Raster1bpp, JobOptions, PrinterStatus } from './types'
+import type { Driver, MediaType, Raster1bpp, JobOptions, PrinterStatus, TapeColor, TextColor } from './types'
 import { packbits } from './packbits'
+
+// Code tables from the Brother raster command reference (PT-E550W/P750W/P710BT).
+const MEDIA_TYPES: Record<number, MediaType> = {
+  0x00: 'no-media',
+  0x01: 'laminated',
+  0x03: 'non-laminated',
+  0x11: 'heat-shrink-2-1',
+  0x17: 'heat-shrink-3-1',
+  0xff: 'incompatible',
+}
+
+const TAPE_COLORS: Record<number, TapeColor> = {
+  0x01: 'white',
+  0x02: 'other',
+  0x03: 'clear',
+  0x04: 'red',
+  0x05: 'blue',
+  0x06: 'yellow',
+  0x07: 'green',
+  0x08: 'black',
+  0x09: 'clear-white-text',
+  0x20: 'matte-white',
+  0x21: 'matte-clear',
+  0x22: 'matte-silver',
+  0x23: 'satin-gold',
+  0x24: 'satin-silver',
+  0x30: 'blue-d',
+  0x31: 'red-d',
+  0x40: 'fluorescent-orange',
+  0x41: 'fluorescent-yellow',
+  0x50: 'berry-pink-s',
+  0x51: 'light-gray-s',
+  0x52: 'lime-green-s',
+  0x60: 'yellow-f',
+  0x61: 'pink-f',
+  0x62: 'blue-f',
+  0x70: 'white-heat-shrink',
+  0x90: 'white-flex-id',
+  0x91: 'yellow-flex-id',
+  0xf0: 'cleaning',
+  0xf1: 'stencil',
+  0xff: 'incompatible',
+}
+
+const TEXT_COLORS: Record<number, TextColor> = {
+  0x01: 'white',
+  0x02: 'other',
+  0x04: 'red',
+  0x05: 'blue',
+  0x08: 'black',
+  0x0a: 'gold',
+  0x62: 'blue-f',
+  0xf0: 'cleaning',
+  0xf1: 'stencil',
+  0xff: 'incompatible',
+}
 
 function isBlankRow(row: Uint8Array): boolean {
   for (let i = 0; i < row.length; i++) if (row[i] !== 0) return false
@@ -67,7 +123,10 @@ export function createBrotherRasterDriver(): Driver {
       // Full Brother status is 32 bytes; fewer means a timeout/disconnect truncated it.
       const incomplete = raw.length < 32
       const mediaWidthMm = incomplete ? null : (raw[10] ?? null)
-      return { raw, hasError, incomplete, mediaWidthMm }
+      const mediaType = incomplete ? null : (MEDIA_TYPES[raw[11] ?? -1] ?? 'unknown')
+      const tapeColor = incomplete ? null : (TAPE_COLORS[raw[24] ?? -1] ?? 'unknown')
+      const textColor = incomplete ? null : (TEXT_COLORS[raw[25] ?? -1] ?? 'unknown')
+      return { raw, hasError, incomplete, mediaWidthMm, mediaType, tapeColor, textColor }
     },
   }
 }
