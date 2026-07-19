@@ -41,7 +41,13 @@ Two layers, both exported:
 1. **Primitives** (à la carte)
    - `types` — the `RgbaImage` → `Raster1bpp` boundary, plus `Driver` /
      `Transport` / `DeviceProfile` interfaces
-   - `rasterCore` — threshold + MSB-first bit packing
+   - `rasterCore` — quantization + MSB-first bit packing (`rgbaToRaster`),
+     plus `rasterToRgba` to render a packed raster back to an image for
+     debugging (full printhead, centering offset included)
+   - `dither` — RGBA → 1-bit quantization: `threshold` (default),
+     `floyd-steinberg`, `atkinson`, `bayer` (4×4 ordered). `ditherRgba`
+     returns a black/white `RgbaImage` preview that matches the print path
+     exactly
    - `packbits` — PackBits run-length encoding
    - `brotherDriver` — PT raster command stream + status parsing
    - `webUsbTransport` / `webSerialTransport` — structural device interfaces
@@ -65,6 +71,26 @@ Two layers, both exported:
 - **The app renders pixels; obwat prints them.** Label/scene rendering does
   not belong here.
 - PT-P710BT is the only profile until real second-printer hardware exists.
+
+### Dithering and resolution
+
+The PT-P710BT prints at **180 dpi** with a 128-dot head (recorded in
+`profiles.ts` as `PT_P710BT_DPI`). `rgbaToRaster` requires the input image to
+already be at the printer's native dot grid (height = `printableDots`) and
+quantizes 1:1 — there is no resampling after dithering anywhere in the
+pipeline, which is the main moiré hazard. Consumers must do any scaling
+*before* handing pixels to obwat, and must never scale a dithered image.
+Ordered (`bayer`) dithering can still interfere with periodic patterns in the
+source art; use an error-diffusion algorithm (`floyd-steinberg`, `atkinson`)
+when that matters.
+
+```ts
+import { ditherRgba, rgbaToRaster, rasterToRgba } from 'obwat'
+
+const preview = ditherRgba(image, { algorithm: 'atkinson' })       // B/W RgbaImage
+const raster = rgbaToRaster(image, media, { algorithm: 'atkinson' }) // same pixels, packed
+const printed = rasterToRgba(raster)                                // virtual-printer view
+```
 
 ## Hardware notes
 

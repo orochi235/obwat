@@ -18,6 +18,23 @@ Results) and `2026-07-18-webusb-handoff.md`.
 | Bluetooth address | `EC:79:49:64:1F:B8` (Classic; Minor Type "Printer") |
 | macOS virtual serial device | `/dev/cu.PT-P710BT3867` |
 
+## Print geometry & resolution
+
+Per Brother's *PT-P710BT raster command reference* (spec-sourced, not yet
+verified by measuring a printed label):
+
+| Fact | Value |
+|---|---|
+| Print resolution | 180 × 180 dpi (widthwise × feed) — square dots |
+| Printhead | 128 pins, 1/180 in pitch (≈ 18.06 mm max print width) |
+| Raster line | 16 bytes (128 bits), MSB-first |
+| High-resolution mode | 180 × 360 dpi (feed doubled) — exists in the protocol; **not used by obwat**, which assumes square 180 dpi dots |
+
+`src/profiles.ts` records these as `PT_P710BT_DPI` / `PT_P710BT_PRINTHEAD_DOTS`.
+If hi-res mode is ever adopted, dots become non-square and every consumer
+rendering at 1 px = 1 dot needs to compensate — treat that as a breaking
+geometry change, not a flag flip.
+
 ## USB layer
 
 Full-speed (12 Mbps) composite device, `bDeviceClass 0` at the device level,

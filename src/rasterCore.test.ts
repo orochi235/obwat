@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rgbaToRaster } from './rasterCore'
+import { rgbaToRaster, rasterToRgba } from './rasterCore'
 import type { RgbaImage, MediaSpec } from './types'
 
 // helper: build an RGBA image from a width x height map of booleans (true = black)
@@ -38,5 +38,47 @@ describe('rgbaToRaster', () => {
 
   it('throws when image height does not match printableDots', () => {
     expect(() => rgbaToRaster(img(2, 7, () => false), media)).toThrow()
+  })
+
+  it('accepts dither options and applies them to the packed output', () => {
+    // Uniform gray 200: plain threshold prints nothing, bayer prints some dots.
+    const grayImg: RgbaImage = {
+      width: 8,
+      height: 8,
+      data: new Uint8ClampedArray(
+        Array.from({ length: 8 * 8 }, () => [200, 200, 200, 255]).flat(),
+      ),
+    }
+    const plain = rgbaToRaster(grayImg, media)
+    const dithered = rgbaToRaster(grayImg, media, { algorithm: 'bayer' })
+    const dots = (r: ReturnType<typeof rgbaToRaster>) =>
+      r.rows.reduce((n, row) => n + row.reduce((m, b) => m + popcount(b), 0), 0)
+    expect(dots(plain)).toBe(0)
+    expect(dots(dithered)).toBeGreaterThan(0)
+  })
+})
+
+function popcount(byte: number): number {
+  let n = 0
+  for (let b = byte; b > 0; b >>= 1) n += b & 1
+  return n
+}
+
+describe('rasterToRgba', () => {
+  it('renders the full printhead so centering is visible', () => {
+    const r = rgbaToRaster(img(3, 8, (x, y) => x === 1 && y === 0), media)
+    const out = rasterToRgba(r)
+    expect(out.width).toBe(3)
+    expect(out.height).toBe(128)
+    // The black pixel at (1, 0) landed on dot 60 (centered offset), so the
+    // rendered image is black at (x=1, y=60) and white elsewhere.
+    for (let y = 0; y < 128; y++) {
+      for (let x = 0; x < 3; x++) {
+        const i = (y * 3 + x) * 4
+        const expected = x === 1 && y === 60 ? 0 : 255
+        expect(out.data[i]).toBe(expected)
+        expect(out.data[i + 3]).toBe(255)
+      }
+    }
   })
 })

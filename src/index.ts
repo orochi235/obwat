@@ -1,5 +1,7 @@
 export * from './types'
-export { rgbaToRaster } from './rasterCore'
+export { rgbaToRaster, rasterToRgba } from './rasterCore'
+export { ditherRgba, ditherToMask } from './dither'
+export type { DitherAlgorithm, DitherOptions } from './dither'
 export { createBrotherRasterDriver, encodeStatusRequest } from './brotherDriver'
 export { createWebSerialTransport } from './webSerialTransport'
 export type { SerialPortLike } from './webSerialTransport'
