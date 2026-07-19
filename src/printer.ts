@@ -1,5 +1,6 @@
-import type { JobOptions, PrinterStatus, Raster1bpp, Transport } from './types'
+import type { JobOptions, MediaSpec, PrinterStatus, Raster1bpp, Transport } from './types'
 import { createBrotherRasterDriver, encodeStatusRequest } from './brotherDriver'
+import { mediaForStatus } from './profiles'
 import { printRaster } from './printJob'
 import { createWebUsbTransport, type UsbDeviceLike } from './webUsbTransport'
 import { createWebSerialTransport, type SerialPortLike } from './webSerialTransport'
@@ -43,6 +44,12 @@ export interface BrotherPrinter {
   requestDevice(): Promise<boolean>
   /** One-shot status poll; null when the device is absent/unreachable (likely asleep). */
   queryStatus(): Promise<PrinterStatus | null>
+  /**
+   * Media spec for the loaded tape (status poll + profile lookup): tells the
+   * consumer what geometry to render (height = printableDots at dpi). Null when
+   * the device is absent/asleep or the reply carries no usable tape width.
+   */
+  queryMedia(): Promise<MediaSpec | null>
   /** Fires after every print, keepalive tick, and queryStatus. Returns unsubscribe. */
   onStatus(cb: (status: PrinterStatus | null) => void): () => void
   dispose(): void
@@ -171,6 +178,20 @@ export function createBrotherPrinter(options: BrotherPrinterOptions = {}): Broth
         }
         notify(status)
         return status
+      })
+    },
+
+    queryMedia: async () => {
+      assertLive()
+      return withLock(async () => {
+        let status: PrinterStatus | null = null
+        try {
+          status = await pollStatus()
+        } catch {
+          status = null
+        }
+        notify(status)
+        return status ? mediaForStatus(status) : null
       })
     },
 

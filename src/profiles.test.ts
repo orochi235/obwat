@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { ptP710btMedia, ptP710btProfile, PT_P710BT_DPI, PT_P710BT_PRINTHEAD_DOTS } from './profiles'
+import {
+  ptP710btMedia,
+  ptP710btProfile,
+  mediaForStatus,
+  PT_P710BT_DPI,
+  PT_P710BT_PRINTHEAD_DOTS,
+} from './profiles'
+import type { PrinterStatus } from './types'
 
 describe('ptP710btProfile', () => {
   it('bundles model, media geometry, and a driver factory — no transport', () => {
@@ -33,5 +40,23 @@ describe('ptP710btMedia', () => {
     expect(media.dpi).toBe(PT_P710BT_DPI)
     expect(media.printheadDots).toBe(PT_P710BT_PRINTHEAD_DOTS)
     expect(media.tapeWidthMm).toBe(12)
+  })
+})
+
+function status(mediaWidthMm: number | null): PrinterStatus {
+  return { raw: new Uint8Array(32), hasError: false, incomplete: false, mediaWidthMm }
+}
+
+describe('mediaForStatus', () => {
+  it('maps a status with a known tape width to its media spec', () => {
+    expect(mediaForStatus(status(12))).toEqual(ptP710btMedia(12))
+  })
+
+  it('returns null when the status has no media width', () => {
+    expect(mediaForStatus(status(null))).toBeNull()
+  })
+
+  it('returns null when no tape is loaded (width 0)', () => {
+    expect(mediaForStatus(status(0))).toBeNull()
   })
 })

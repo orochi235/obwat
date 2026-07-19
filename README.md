@@ -62,7 +62,10 @@ Two layers, both exported:
    open/close: the printer auto-sleeps and vanishes from USB enumeration, so
    "connected" is never a stable state worth exposing. The facade owns device
    acquisition and keepalive, and emits `onStatus` updates after every print,
-   poll, and keepalive tick.
+   poll, and keepalive tick. `queryMedia()` reports the loaded tape's
+   `MediaSpec` (render height, dpi) so consumers know what geometry to
+   produce; `mediaForStatus()` derives the same thing from any `onStatus`
+   emission.
 
 ### Design rules
 

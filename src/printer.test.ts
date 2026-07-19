@@ -150,6 +150,22 @@ describe('createBrotherPrinter', () => {
     printer.dispose()
   })
 
+  it('queryMedia() returns the media spec for the loaded tape and notifies listeners', async () => {
+    const { device } = fakeUsbDevice()
+    const printer = createBrotherPrinter({ usb: fakeUsb([device]), serial: null, keepaliveMs: 0 })
+    const seen: unknown[] = []
+    printer.onStatus((s) => seen.push(s))
+    const media = await printer.queryMedia()
+    // fake replies with 12 mm tape -> documented 70-dot print area
+    expect(media).toMatchObject({ tapeWidthMm: 12, printableDots: 70, dpi: 180 })
+    expect(seen).toHaveLength(1)
+  })
+
+  it('queryMedia() returns null when no device is present', async () => {
+    const printer = createBrotherPrinter({ usb: fakeUsb([]), serial: null, keepaliveMs: 0 })
+    await expect(printer.queryMedia()).resolves.toBeNull()
+  })
+
   it('onStatus unsubscribe stops callbacks; dispose() rejects further prints', async () => {
     const { device } = fakeUsbDevice()
     const printer = createBrotherPrinter({ usb: fakeUsb([device]), serial: null, keepaliveMs: 0 })
