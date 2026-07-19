@@ -30,7 +30,7 @@ verified by measuring a printed label):
 | Raster line | 16 bytes (128 bits), MSB-first |
 | High-resolution mode | 180 × 360 dpi (feed doubled) — exists in the protocol; **not used by obwat**, which assumes square 180 dpi dots |
 
-`src/profiles.ts` records these as `PT_P710BT_DPI` / `PT_P710BT_PRINTHEAD_DOTS`.
+`src/profiles.ts` records these as `Printers.ptP710bt.dpi` / `.printheadDots`.
 If hi-res mode is ever adopted, dots become non-square and every consumer
 rendering at 1 px = 1 dot needs to compensate — treat that as a breaking
 geometry change, not a flag flip.

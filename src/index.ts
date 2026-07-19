@@ -12,7 +12,8 @@ export type {
   UsbInterfaceLike,
   UsbEndpointLike,
 } from './webUsbTransport'
-export { ptP710btProfile, ptP710btMedia, mediaForStatus } from './profiles'
+export { Printers, mediaForStatus } from './profiles'
+export type { PrinterDefinition } from './profiles'
 export { printRaster } from './printJob'
 export type { PrintRasterArgs } from './printJob'
 export { startUsbKeepalive } from './keepalive'

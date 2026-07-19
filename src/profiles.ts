@@ -1,8 +1,19 @@
 import type { DeviceProfile, MediaSpec, PrinterStatus } from './types'
 import { createBrotherRasterDriver } from './brotherDriver'
 
-export const PT_P710BT_DPI = 180
-export const PT_P710BT_PRINTHEAD_DOTS = 128
+/** A supported printer model: fixed geometry plus per-tape-width factories. */
+export interface PrinterDefinition {
+  model: string
+  dpi: number
+  printheadDots: number
+  /** Media spec for a given tape width (mm). */
+  media(tapeWidthMm: number): MediaSpec
+  /** Full profile (geometry + driver factory) for a given tape width (mm). */
+  profile(tapeWidthMm: number): DeviceProfile
+}
+
+const PT_P710BT_DPI = 180
+const PT_P710BT_PRINTHEAD_DOTS = 128
 
 /**
  * Documented print-area dot counts per tape width (PT-P700-series raster reference).
@@ -18,13 +29,27 @@ const PT_P710BT_PRINTABLE_DOTS: Record<number, number> = {
   24: 128,
 }
 
-/** Build the media spec for a given tape width (mm) on the PT-P710BT. */
-export function ptP710btMedia(tapeWidthMm: number): MediaSpec {
+function ptP710btMedia(tapeWidthMm: number): MediaSpec {
   const printableDots =
     PT_P710BT_PRINTABLE_DOTS[tapeWidthMm] ??
     Math.min(PT_P710BT_PRINTHEAD_DOTS, Math.round((tapeWidthMm / 25.4) * PT_P710BT_DPI))
   return { dpi: PT_P710BT_DPI, printheadDots: PT_P710BT_PRINTHEAD_DOTS, printableDots, tapeWidthMm }
 }
+
+/** Every supported printer, keyed by model. PT-P710BT is the only one until real second-printer hardware exists. */
+export const Printers = {
+  ptP710bt: {
+    model: 'Brother PT-P710BT',
+    dpi: PT_P710BT_DPI,
+    printheadDots: PT_P710BT_PRINTHEAD_DOTS,
+    media: ptP710btMedia,
+    profile: (tapeWidthMm: number): DeviceProfile => ({
+      model: 'Brother PT-P710BT',
+      media: ptP710btMedia(tapeWidthMm),
+      makeDriver: () => createBrotherRasterDriver(),
+    }),
+  },
+} satisfies Record<string, PrinterDefinition>
 
 /**
  * Media spec for whatever tape a status reply says is loaded, or null when the
@@ -33,14 +58,5 @@ export function ptP710btMedia(tapeWidthMm: number): MediaSpec {
  */
 export function mediaForStatus(status: PrinterStatus): MediaSpec | null {
   if (!status.mediaWidthMm) return null
-  return ptP710btMedia(status.mediaWidthMm)
-}
-
-/** PT-P710BT profile: geometry + driver. Transport construction lives in the facade/caller. */
-export function ptP710btProfile(tapeWidthMm: number): DeviceProfile {
-  return {
-    model: 'Brother PT-P710BT',
-    media: ptP710btMedia(tapeWidthMm),
-    makeDriver: () => createBrotherRasterDriver(),
-  }
+  return Printers.ptP710bt.media(status.mediaWidthMm)
 }

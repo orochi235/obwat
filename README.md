@@ -12,14 +12,14 @@ consumer's job.
 ## Quick start
 
 ```ts
-import { createBrotherPrinter, rgbaToRaster, ptP710btMedia, NoGrantedDeviceError } from 'obwat'
+import { createBrotherPrinter, rgbaToRaster, Printers, NoGrantedDeviceError } from 'obwat'
 
 const printer = createBrotherPrinter()
 
 // Inside a user gesture — shows the browser's device picker once:
 await printer.requestDevice()
 
-const raster = rgbaToRaster(image, ptP710btMedia)
+const raster = rgbaToRaster(image, Printers.ptP710bt.media(24))
 try {
   const status = await printer.print(raster, {
     tapeWidthMm: 24,
@@ -52,7 +52,8 @@ Two layers, both exported:
    - `brotherDriver` — PT raster command stream + status parsing
    - `webUsbTransport` / `webSerialTransport` — structural device interfaces
      (`UsbDeviceLike`, `SerialPortLike`), testable with fakes
-   - `profiles` — media geometry per printer model
+   - `profiles` — the `Printers` registry: per-model geometry + `media()` /
+     `profile()` factories (e.g. `Printers.ptP710bt.media(12)`)
    - `printJob` — `printRaster()`: one job over a driver + transport
    - `keepalive` — periodic status polling to hold off auto-sleep
 
@@ -77,8 +78,8 @@ Two layers, both exported:
 
 ### Dithering and resolution
 
-The PT-P710BT prints at **180 dpi** with a 128-dot head (recorded in
-`profiles.ts` as `PT_P710BT_DPI`). `rgbaToRaster` requires the input image to
+The PT-P710BT prints at **180 dpi** with a 128-dot head (recorded as
+`Printers.ptP710bt.dpi` / `.printheadDots`). `rgbaToRaster` requires the input image to
 already be at the printer's native dot grid (height = `printableDots`) and
 quantizes 1:1 — there is no resampling after dithering anywhere in the
 pipeline, which is the main moiré hazard. Consumers must do any scaling
