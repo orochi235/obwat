@@ -29,8 +29,13 @@ export class NoGrantedDeviceError extends Error {
 }
 
 export interface BrotherPrinterOptions {
-  /** Status-poll interval that also keeps the printer awake; 0 disables. Default 60 s. */
+  /** Status-poll interval while the printer is reachable — also keeps it awake;
+   *  0 disables all polling. Default 60 s. */
   keepaliveMs?: number
+  /** Poll interval while no device is enumerated (off/asleep). Absent polls are
+   *  just a getDevices() check — no device I/O — so this runs fast to catch
+   *  power-on quickly. Default min(3 s, keepaliveMs). */
+  absentPollMs?: number
   /** Override or disable (null) the WebUSB source. Default: navigator.usb when present. */
   usb?: UsbLike | null
   /** Override or disable (null) the Web Serial source. Default: navigator.serial when present. */
@@ -71,11 +76,16 @@ export function createBrotherPrinter(options: BrotherPrinterOptions = {}): Broth
   const usb = options.usb === undefined ? (nav?.usb ?? null) : options.usb
   const serial = options.serial === undefined ? (nav?.serial ?? null) : options.serial
   const keepaliveMs = options.keepaliveMs ?? 60_000
+  const absentPollMs = options.absentPollMs ?? Math.min(3_000, keepaliveMs)
 
   let serialPort: SerialPortLike | null = null
   let disposed = false
   const listeners = new Set<(status: PrinterStatus | null) => void>()
+  // Every status observation — keepalive tick, manual query, or print — feeds
+  // reachability, which picks the polling cadence below.
+  let reachable = false
   const notify = (status: PrinterStatus | null) => {
+    reachable = status !== null
     for (const cb of listeners) cb(status)
   }
 
@@ -125,12 +135,20 @@ export function createBrotherPrinter(options: BrotherPrinterOptions = {}): Broth
     notify(status)
   }
 
-  let keepaliveHandle: ReturnType<typeof setInterval> | null = null
-  if (keepaliveMs > 0) {
-    keepaliveHandle = setInterval(() => {
-      if (!disposed) void withLock(keepaliveTick)
-    }, keepaliveMs)
+  // Self-scheduling timeout chain, not setInterval: the next tick is armed
+  // only after the previous one finishes, so ticks can't pile up behind a
+  // long print, and each delay adapts to reachability — fast while absent
+  // (cheap enumeration check), keepalive cadence while reachable (real
+  // open/claim/status I/O). Reachability starts unknown, so the first poll
+  // runs at the fast cadence and settles the chip promptly after load.
+  let keepaliveHandle: ReturnType<typeof setTimeout> | null = null
+  const armKeepalive = () => {
+    if (disposed) return
+    keepaliveHandle = setTimeout(() => {
+      void withLock(keepaliveTick).then(armKeepalive)
+    }, reachable ? keepaliveMs : absentPollMs)
   }
+  if (keepaliveMs > 0) armKeepalive()
 
   const assertLive = () => {
     if (disposed) throw new Error('printer disposed')
@@ -204,7 +222,7 @@ export function createBrotherPrinter(options: BrotherPrinterOptions = {}): Broth
 
     dispose: () => {
       disposed = true
-      if (keepaliveHandle !== null) clearInterval(keepaliveHandle)
+      if (keepaliveHandle !== null) clearTimeout(keepaliveHandle)
       listeners.clear()
     },
   }

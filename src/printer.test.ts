@@ -141,6 +141,51 @@ describe('createBrotherPrinter', () => {
     expect(seen.length).toBe(2)
   })
 
+  it('polls fast while absent, then relaxes to keepaliveMs once reachable', async () => {
+    const devices: UsbDeviceWithVendor[] = []
+    const printer = createBrotherPrinter({
+      usb: fakeUsb(devices),
+      serial: null,
+      keepaliveMs: 10_000,
+      absentPollMs: 1000,
+    })
+    const seen: unknown[] = []
+    printer.onStatus((s) => seen.push(s))
+    await vi.advanceTimersByTimeAsync(3100)
+    expect(seen).toEqual([null, null, null]) // absent cadence
+    devices.push(fakeUsbDevice().device) // printer powers on
+    await vi.advanceTimersByTimeAsync(1000) // next absent-cadence tick finds it
+    expect(seen).toHaveLength(4)
+    expect(seen[3]).not.toBeNull()
+    await vi.advanceTimersByTimeAsync(3000) // reachable now — no tick until keepaliveMs
+    expect(seen).toHaveLength(4)
+    await vi.advanceTimersByTimeAsync(7000) // 10 s after the reachable tick
+    expect(seen).toHaveLength(5)
+    printer.dispose()
+  })
+
+  it('drops back to fast polling when the printer vanishes', async () => {
+    const devices: UsbDeviceWithVendor[] = [fakeUsbDevice().device]
+    const printer = createBrotherPrinter({
+      usb: fakeUsb(devices),
+      serial: null,
+      keepaliveMs: 10_000,
+      absentPollMs: 1000,
+    })
+    const seen: unknown[] = []
+    printer.onStatus((s) => seen.push(s))
+    await vi.advanceTimersByTimeAsync(1100) // reachability unknown at start → absent cadence
+    expect(seen).toHaveLength(1)
+    expect(seen[0]).not.toBeNull()
+    devices.length = 0 // printer powers off
+    await vi.advanceTimersByTimeAsync(10_000) // keepalive-cadence tick discovers the absence
+    expect(seen).toHaveLength(2)
+    expect(seen[1]).toBeNull()
+    await vi.advanceTimersByTimeAsync(1000) // fast again
+    expect(seen).toHaveLength(3)
+    printer.dispose()
+  })
+
   it('keepalive notifies null when no device is present', async () => {
     const printer = createBrotherPrinter({ usb: fakeUsb([]), serial: null, keepaliveMs: 1000 })
     const seen: unknown[] = []
