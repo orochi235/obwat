@@ -9,6 +9,22 @@ it thresholds and packs the bits, encodes the PT raster command stream, and
 ships it over the transport. Rendering the label (text, layout, scenes) is the
 consumer's job.
 
+## Browser support
+
+**Chrome on desktop is the primary target** — it's what obwat is developed and
+tested against. WebUSB and Web Serial are Chromium-only APIs (both require a
+secure context: `https:` or `localhost`), which constrains the rest of the
+field:
+
+- **Other desktop Chromium browsers** (Edge, Opera, Vivaldi, Arc, …) ship the
+  same engine and should work identically, but aren't regularly tested. Brave
+  disables Web Serial by default; it must be enabled per-site.
+- **Chrome on Android** has WebUSB but not Web Serial, so the WebUSB path may
+  work with a USB OTG adapter — untested.
+- **Firefox and Safari** implement neither API and have publicly declined to,
+  so there is no support path. On iOS/iPadOS every browser uses WebKit, so
+  nothing works there either.
+
 ## Quick start
 
 ```ts
@@ -103,7 +119,6 @@ const printed = rasterToRgba(raster)                                // virtual-p
   probe tools.
 - The printer auto-powers off after ~10 minutes idle and disappears from USB
   enumeration. An empty `getDevices()` usually means *asleep*, not a bug.
-- WebUSB/Web Serial require a Chromium-based browser and a secure context.
 
 ## Development
 
