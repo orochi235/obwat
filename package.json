@@ -7,15 +7,39 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orochi235/obwat.git"
+  },
+  "homepage": "https://github.com/orochi235/obwat#readme",
+  "bugs": {
+    "url": "https://github.com/orochi235/obwat/issues"
+  },
+  "keywords": [
+    "brother",
+    "p-touch",
+    "pt-p710bt",
+    "label-printer",
+    "webusb",
+    "web-serial",
+    "raster",
+    "printing",
+    "browser"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "docs": "typedoc"
+    "docs": "typedoc",
+    "prepublishOnly": "npm test && npm run build"
   },
   "license": "MIT",
   "devDependencies": {
