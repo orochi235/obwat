@@ -6,12 +6,16 @@ export interface PrintRasterArgs {
   opts: JobOptions
 }
 
-/** Open, send the encoded job, read the trailing status, and always close. */
+/** Open, send the encoded job, read the trailing status, and always close.
+ *  Pass an array of rasters to print a multi-page strip in one job (the
+ *  cutter fires between pages when auto-cut is on). */
 export async function printRaster(
-  raster: Raster1bpp,
+  raster: Raster1bpp | readonly Raster1bpp[],
   { driver, transport, opts }: PrintRasterArgs,
 ): Promise<PrinterStatus> {
-  const bytes = driver.encode(raster, opts)
+  const bytes = Array.isArray(raster)
+    ? driver.encodeJob(raster, opts)
+    : driver.encode(raster as Raster1bpp, opts)
   await transport.open()
   try {
     await transport.write(bytes)

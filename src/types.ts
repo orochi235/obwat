@@ -105,7 +105,11 @@ export interface PrinterStatus {
 }
 
 export interface Driver {
+  /** Encode a single-page job. Equivalent to `encodeJob([raster], opts)`. */
   encode(raster: Raster1bpp, opts: JobOptions): Uint8Array
+  /** Encode a multi-page job: one label strip, the cutter firing between
+   *  pages (auto-cut) and a feed after the last. Throws on an empty list. */
+  encodeJob(pages: readonly Raster1bpp[], opts: JobOptions): Uint8Array
   parseStatus(raw: Uint8Array): PrinterStatus
 }
 

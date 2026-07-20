@@ -43,8 +43,10 @@ export interface BrotherPrinterOptions {
 }
 
 export interface BrotherPrinter {
-  /** Print via an already-granted device. Rejects NoGrantedDeviceError — never shows a picker. */
-  print(raster: Raster1bpp, opts: JobOptions): Promise<PrinterStatus>
+  /** Print via an already-granted device; rejects NoGrantedDeviceError, never
+   *  shows a picker. An array prints a multi-page strip in one job — the
+   *  cutter fires between pages when auto-cut is on. */
+  print(raster: Raster1bpp | readonly Raster1bpp[], opts: JobOptions): Promise<PrinterStatus>
   /** Show the vendor-filtered picker (USB) or port picker (serial). Call inside a user gesture. */
   requestDevice(): Promise<boolean>
   /** One-shot status poll; null when the device is absent/unreachable (likely asleep). */

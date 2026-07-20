@@ -71,22 +71,24 @@ export function encodeStatusRequest(): Uint8Array {
 
 /** Brother PT-P710BT raster driver. Byte sequence taken verbatim from the reference impl. */
 export function createBrotherRasterDriver(): Driver {
-  return {
-    encode(raster: Raster1bpp, opts: JobOptions): Uint8Array {
-      const out: number[] = []
+  const encodeJob = (pages: readonly Raster1bpp[], opts: JobOptions): Uint8Array => {
+    if (pages.length === 0) throw new Error('encodeJob: at least one page is required')
+    const out: number[] = []
 
-      // 1. invalidate
-      for (let i = 0; i < 100; i++) out.push(0x00)
-      // 2. initialize
-      out.push(0x1b, 0x40)
-      // 3. status request
-      out.push(0x1b, 0x69, 0x53)
-      // 4. raster mode
-      out.push(0x1b, 0x69, 0x61, 0x01)
-      // 4.5. switch automatic status notification mode: notify (default)
-      out.push(0x1b, 0x69, 0x21, 0x00)
+    // 1. invalidate
+    for (let i = 0; i < 100; i++) out.push(0x00)
+    // 2. initialize
+    out.push(0x1b, 0x40)
+    // 3. status request
+    out.push(0x1b, 0x69, 0x53)
+    // 4. raster mode
+    out.push(0x1b, 0x69, 0x61, 0x01)
+    // 4.5. switch automatic status notification mode: notify (default)
+    out.push(0x1b, 0x69, 0x21, 0x00)
+
+    pages.forEach((raster, pageIndex) => {
       // 5. print information: ESC i z, flags 0x84, media 0x00, width mm, length 0x00,
-      //    raster count (4-byte LE), trailing 0x00 0x00
+      //    raster count (4-byte LE), trailing 0x00 0x00 — announced per page.
       const n = raster.lineCount
       out.push(
         0x1b, 0x69, 0x7a, 0x84, 0x00, opts.tapeWidthMm & 0xff, 0x00,
@@ -111,11 +113,17 @@ export function createBrotherRasterDriver(): Driver {
           for (const b of packed) out.push(b)
         }
       }
-      // 11. print + feed + cut
-      out.push(0x1a)
+      // 11. page terminator: FF prints the page (the cutter fires between
+      // pages when auto-cut is on); Ctrl-Z on the last page prints + feeds.
+      out.push(pageIndex === pages.length - 1 ? 0x1a : 0x0c)
+    })
 
-      return Uint8Array.from(out)
-    },
+    return Uint8Array.from(out)
+  }
+
+  return {
+    encodeJob,
+    encode: (raster: Raster1bpp, opts: JobOptions) => encodeJob([raster], opts),
 
     parseStatus(raw: Uint8Array): PrinterStatus {
       // Brother 32-byte status: error-information bytes at offsets 8 and 9.

@@ -159,3 +159,45 @@ describe('BrotherRasterDriver', () => {
     expect(status.textColor).toBeNull()
   })
 })
+
+describe('BrotherRasterDriver — multi-page jobs', () => {
+  it('encodeJob([one]) matches encode(one) byte-for-byte', () => {
+    const d = createBrotherRasterDriver()
+    expect(Array.from(d.encodeJob([blankRaster(2)], opts))).toEqual(
+      Array.from(d.encode(blankRaster(2), opts)),
+    )
+  })
+
+  it('separates pages with FF (0x0c) and ends the job with 0x1a', () => {
+    const d = createBrotherRasterDriver()
+    const out = Array.from(d.encodeJob([blankRaster(1), blankRaster(1)], opts))
+    const expected = [
+      ...new Array(100).fill(0x00), // invalidate
+      0x1b, 0x40, // init
+      0x1b, 0x69, 0x53, // status request
+      0x1b, 0x69, 0x61, 0x01, // raster mode
+      0x1b, 0x69, 0x21, 0x00, // status notification mode
+      // page 1
+      0x1b, 0x69, 0x7a, 0x84, 0x00, 0x0c, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x1b, 0x69, 0x4d, 0x40,
+      0x1b, 0x69, 0x4b, 0x08,
+      0x1b, 0x69, 0x64, 0x00, 0x00,
+      0x4d, 0x02,
+      0x5a,
+      0x0c, // print page (cutter fires here with auto-cut on)
+      // page 2
+      0x1b, 0x69, 0x7a, 0x84, 0x00, 0x0c, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x1b, 0x69, 0x4d, 0x40,
+      0x1b, 0x69, 0x4b, 0x08,
+      0x1b, 0x69, 0x64, 0x00, 0x00,
+      0x4d, 0x02,
+      0x5a,
+      0x1a, // last page: print + feed + cut
+    ]
+    expect(out).toEqual(expected)
+  })
+
+  it('rejects an empty page list', () => {
+    expect(() => createBrotherRasterDriver().encodeJob([], opts)).toThrow()
+  })
+})
