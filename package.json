@@ -1,6 +1,6 @@
 {
   "name": "obwat",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "O Brother Where Art Thou — Brother P-touch raster printing from the browser (WebUSB / Web Serial)",
   "type": "module",
   "main": "dist/index.js",
