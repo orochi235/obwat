@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { ditherRgba, ditherToMask } from './dither'
+import { ditherRgba, ditherToMask, type PixelRect } from './dither'
+import { rgbaToRaster } from './rasterCore'
 import type { RgbaImage } from './types'
 
 function gray(width: number, height: number, value: number, alpha = 255): RgbaImage {
@@ -87,6 +88,130 @@ describe('ditherToMask', () => {
         }
       }
     })
+  })
+})
+
+describe('protected regions', () => {
+  /** Left half mid-gray (which every diffusing algorithm turns into a
+   *  pattern), right half the same gray but declared off-limits. */
+  function halfProtected(): { image: RgbaImage; protect: PixelRect[] } {
+    return {
+      image: gray(16, 8, 128),
+      protect: [{ x: 8, y: 0, width: 8, height: 8 }],
+    }
+  }
+
+  function region(mask: Uint8Array, width: number, r: PixelRect): number[] {
+    const out: number[] = []
+    for (let y = r.y; y < r.y + r.height; y++) {
+      for (let x = r.x; x < r.x + r.width; x++) out.push(mask[y * width + x] ?? -1)
+    }
+    return out
+  }
+
+  const DITHERS = ['floyd-steinberg', 'atkinson', 'bayer'] as const
+
+  it.each(DITHERS)('quantizes a protected region by threshold under %s', (algorithm) => {
+    const { image, protect } = halfProtected()
+    const mask = ditherToMask(image, { algorithm, protect })
+    const plain = ditherToMask(image)
+
+    // 128 is not < 128, so thresholding leaves the whole region white. The
+    // point is that it matches the threshold pass and not the algorithm's.
+    expect(region(mask, 16, protect[0]!)).toEqual(region(plain, 16, protect[0]!))
+  })
+
+  it.each(DITHERS)('still dithers everything outside the region under %s', (algorithm) => {
+    const { image, protect } = halfProtected()
+    const mask = ditherToMask(image, { algorithm, protect })
+    const unprotected = { x: 0, y: 0, width: 8, height: 8 }
+
+    // Mid-gray thresholds to solid white; a dithered half must not.
+    expect(region(mask, 16, unprotected).some((v) => v === 1)).toBe(true)
+  })
+
+  it('does not let a neighbour diffuse error into the region', () => {
+    // The left column is dark enough to emit error every row; without the
+    // boundary stop it lands in the first protected column and flips pixels
+    // the threshold pass would have left alone.
+    const image = gray(8, 8, 128)
+    for (let y = 0; y < 8; y++) {
+      const i = (y * 8) * 4
+      image.data[i] = 40
+      image.data[i + 1] = 40
+      image.data[i + 2] = 40
+    }
+    const protect: PixelRect[] = [{ x: 1, y: 0, width: 7, height: 8 }]
+
+    const mask = ditherToMask(image, { algorithm: 'floyd-steinberg', protect })
+    const plain = ditherToMask(image)
+
+    expect(region(mask, 8, protect[0]!)).toEqual(region(plain, 8, protect[0]!))
+  })
+
+  it('rounds a fractional rect outward to whole pixels', () => {
+    const image = gray(8, 1, 128)
+    const mask = ditherToMask(image, {
+      algorithm: 'floyd-steinberg',
+      protect: [{ x: 2.4, y: 0, width: 1.2, height: 0.5 }],
+    })
+    const plain = ditherToMask(image)
+
+    // Every pixel the rect touches — 2 and 3 — is thresholded.
+    expect(mask[2]).toBe(plain[2])
+    expect(mask[3]).toBe(plain[3])
+  })
+
+  it('clips a rect that runs past the image instead of throwing', () => {
+    const image = gray(4, 4, 128)
+    const mask = ditherToMask(image, {
+      algorithm: 'floyd-steinberg',
+      protect: [{ x: -10, y: -10, width: 100, height: 100 }],
+    })
+
+    expect(Array.from(mask)).toEqual(Array.from(ditherToMask(image)))
+  })
+
+  it('unions overlapping rects', () => {
+    const image = gray(8, 1, 128)
+    const mask = ditherToMask(image, {
+      algorithm: 'floyd-steinberg',
+      protect: [
+        { x: 0, y: 0, width: 4, height: 1 },
+        { x: 2, y: 0, width: 6, height: 1 },
+      ],
+    })
+
+    expect(Array.from(mask)).toEqual(Array.from(ditherToMask(image)))
+  })
+
+  it('leaves output unchanged when no region is given', () => {
+    // The regression guard: every existing caller passes no `protect`.
+    const image = gray(16, 16, 128)
+    for (const algorithm of DITHERS) {
+      const before = ditherToMask(image, { algorithm })
+      expect(Array.from(ditherToMask(image, { algorithm, protect: [] }))).toEqual(
+        Array.from(before),
+      )
+      expect(Array.from(ditherToMask(image, { algorithm, protect: undefined }))).toEqual(
+        Array.from(before),
+      )
+    }
+  })
+
+  it('reaches the raster through rgbaToRaster, not just the mask', () => {
+    // rgbaToRaster forwards DitherOptions; this is what makes print and
+    // preview share one setting instead of two code paths.
+    const image = gray(16, 8, 128)
+    const media = { dpi: 180, printheadDots: 128, printableDots: 8, tapeWidthMm: 24 }
+    const protect: PixelRect[] = [{ x: 0, y: 0, width: 16, height: 8 }]
+
+    const dithered = rgbaToRaster(image, media, { algorithm: 'floyd-steinberg' })
+    const protectedRaster = rgbaToRaster(image, media, { algorithm: 'floyd-steinberg', protect })
+    const thresholded = rgbaToRaster(image, media)
+
+    expect(protectedRaster.rows).toEqual(thresholded.rows)
+    expect(protectedRaster.rows).not.toEqual(dithered.rows)
   })
 })
 

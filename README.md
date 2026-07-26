@@ -112,6 +112,25 @@ const raster = rgbaToRaster(image, media, { algorithm: 'atkinson' }) // same pix
 const printed = rasterToRgba(raster)                                // virtual-printer view
 ```
 
+Not all artwork on a label wants dithering. Where the geometry *is* the
+meaning — a barcode, a hairline rule, small type — a dither pattern is damage
+rather than tone: error diffusion carries a bar edge's quantization error into
+the bar beside it, and an ordered matrix resolves the same edge black on one
+row and white on the next. `protect` names those regions, in image pixels:
+
+```ts
+const raster = rgbaToRaster(image, media, {
+  algorithm: 'atkinson',
+  protect: [{ x: 40, y: 8, width: 96, height: 48 }], // barcode + quiet zone
+})
+```
+
+Protected pixels quantize at the flat `threshold`, and error diffusion stops
+at the boundary in both directions — so the photograph beside them still
+dithers, without pushing a speck into the quiet zone. obwat asks no questions
+about what a region contains; the consumer knows which of its objects can't
+survive a dither.
+
 ## Hardware notes
 
 - Supported/tested: **Brother PT-P710BT**. `docs/hardware/pt-p710bt.md` is the
